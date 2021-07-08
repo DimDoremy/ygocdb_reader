@@ -1,9 +1,13 @@
-use crate::{app::{app_builder::app_builder, app_operation::{search, search_hyper}}, conn::{
-    conn::Conn,
-}};
+use crate::{
+    app::{
+        app_builder::app_builder,
+        app_operation::{search, search_hyper},
+    },
+    conn::conn::Conn,
+};
 
-pub mod conn;
 pub mod app;
+pub mod conn;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -31,4 +35,3 @@ fn main() -> Result<(), rusqlite::Error> {
         search(matches, &mut _conns)
     }
 }
-
