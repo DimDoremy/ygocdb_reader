@@ -1,7 +1,11 @@
 use clap::ArgMatches;
 use rusqlite::Error;
 
-use crate::conn::{card::Card, conn::Conn, select::{Operation, Select}};
+use crate::conn::{
+    card::Card,
+    conn::Conn,
+    select::{Operation, Select},
+};
 
 pub fn search(matches: ArgMatches, _conns: &mut Conn) -> Result<(), Error> {
     // 如果没开启高级查询
@@ -77,6 +81,44 @@ pub fn search(matches: ArgMatches, _conns: &mut Conn) -> Result<(), Error> {
         },
         None => (),
     };
+    // -k
+    match matches.value_of("KIND") {
+        Some(kind) => {
+            let kind_vec = kind.split("-");
+            let mut kind_code: u64 = 0;
+            for k in kind_vec {
+                match k {
+                    "怪兽" => kind_code += 0x1,
+                    "魔法" => kind_code += 0x2,
+                    "陷阱" => kind_code += 0x4,
+                    "通常" => kind_code += 0x10,
+                    "效果" => kind_code += 0x20,
+                    "融合" => kind_code += 0x30,
+                    "灵魂" => kind_code += 0x200,
+                    "同盟" => kind_code += 0x400,
+                    "二重" => kind_code += 0x800,
+                    "调整" => kind_code += 0x1_000,
+                    "同调" => kind_code += 0x2_000,
+                    "反转" => kind_code += 0x200_000,
+                    "卡通" => kind_code += 0x400_000,
+                    "超量" => kind_code += 0x800_000,
+                    "灵摆" => kind_code += 0x1_000_000,
+                    "特殊召唤" => kind_code += 0x2_000_000,
+                    "链接" => kind_code += 0x4_000_000,
+                    "仪式" => kind_code += 0x80,
+                    "速攻" => kind_code += 0x10_000,
+                    "永续" => kind_code += 0x20_000,
+                    "装备" => kind_code += 0x40_000,
+                    "场地" => kind_code += 0x80_000,
+                    "反击" => kind_code += 0x100_000,
+                    _ => panic!("输入的卡片种类不正确"),
+                }
+            }
+            _conns.select_kind(kind_code)?;
+            return Ok(());
+        }
+        None => (),
+    };
     // -c
     match matches.value_of("CODE") {
         Some(x) => match x.parse::<u64>() {
@@ -110,7 +152,7 @@ pub fn search(matches: ArgMatches, _conns: &mut Conn) -> Result<(), Error> {
 pub fn search_hyper(matches: ArgMatches, _conns: &mut Conn) -> Result<(), Error> {
     let mut atk_opt: Operation = Operation::EQ;
     let mut def_opt: Operation = Operation::EQ;
-    
+
     let mut param = Vec::new();
     // -a
     match matches.value_of("ATK") {
@@ -184,6 +226,43 @@ pub fn search_hyper(matches: ArgMatches, _conns: &mut Conn) -> Result<(), Error>
         },
         None => (),
     };
+    // -k
+    match matches.value_of("KIND") {
+        Some(kind) => {
+            let kind_vec = kind.split("-");
+            let mut kind_code: u64 = 0;
+            for k in kind_vec {
+                match k {
+                    "怪兽" => kind_code += 0x1,
+                    "魔法" => kind_code += 0x2,
+                    "陷阱" => kind_code += 0x4,
+                    "通常" => kind_code += 0x10,
+                    "效果" => kind_code += 0x20,
+                    "融合" => kind_code += 0x30,
+                    "灵魂" => kind_code += 0x200,
+                    "同盟" => kind_code += 0x400,
+                    "二重" => kind_code += 0x800,
+                    "调整" => kind_code += 0x1_000,
+                    "同调" => kind_code += 0x2_000,
+                    "反转" => kind_code += 0x200_000,
+                    "卡通" => kind_code += 0x400_000,
+                    "超量" => kind_code += 0x800_000,
+                    "灵摆" => kind_code += 0x1_000_000,
+                    "特殊召唤" => kind_code += 0x2_000_000,
+                    "链接" => kind_code += 0x4_000_000,
+                    "仪式" => kind_code += 0x80,
+                    "速攻" => kind_code += 0x10_000,
+                    "永续" => kind_code += 0x20_000,
+                    "装备" => kind_code += 0x40_000,
+                    "场地" => kind_code += 0x80_000,
+                    "反击" => kind_code += 0x100_000,
+                    _ => panic!("输入的卡片种类不正确"),
+                }
+            }
+            param.push(("type", kind_code.to_string()));
+        }
+        None => (),
+    };
     // -c
     match matches.value_of("CODE") {
         Some(x) => match x.parse::<u64>() {
@@ -208,6 +287,7 @@ pub fn search_hyper(matches: ArgMatches, _conns: &mut Conn) -> Result<(), Error>
         match k {
             "atk" => card_search.atk = v.parse::<i32>().unwrap(),
             "def" => card_search.def = v.parse::<i32>().unwrap(),
+            "type" => card_search.types = v.parse::<u64>().unwrap(),
             "code" => card_search.id = v.parse::<u64>().unwrap(),
             "effect" => card_search.desc = v,
             "name" => card_search.name = v,

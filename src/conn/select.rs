@@ -10,11 +10,16 @@ pub enum Operation {
     LT, // 小于
 }
 
+pub const BASE_SQL: &str =
+    "SELECT d.id,name,type,atk,def,desc FROM datas AS d INNER JOIN texts AS t ON d.id=t.id ";
+
 pub trait Select {
     // 查询所有有价值的信息,通过攻击力
     fn select_atk(&self, atk: u32, opt: Operation) -> Result<(), Error>;
     // 查询所有有价值的信息,通过守备力
     fn select_def(&self, def: u32, opt: Operation) -> Result<(), Error>;
+    // 查询所有有价值的信息,通过卡片种类
+    fn select_kind(&self, kind_code: u64) -> Result<(), Error>;
     // 查询所有有价值的信息,通过卡密
     fn select_code(&self, code: u64) -> Result<(), Error>;
     // 查询所有有价值的信息,通过效果
@@ -28,11 +33,15 @@ pub trait Select {
 
 impl Select for Conn {
     fn select_atk(&self, atk: u32, opt: Operation) -> Result<(), Error> {
-        let sql = format!("SELECT d.id,name,atk,def,desc FROM datas AS d INNER JOIN texts AS t ON d.id=t.id WHERE {};",  match opt {
-            Operation::EQ => "atk=?",
-            Operation::GT => "atk>?",
-            Operation::LT => "atk<?", 
-        });
+        let sql = format!(
+            "{} WHERE {}",
+            BASE_SQL,
+            match opt {
+                Operation::EQ => "atk=?",
+                Operation::GT => "atk>?",
+                Operation::LT => "atk<?",
+            }
+        );
         let mut stmt = self.conn.prepare(&sql)?;
         let results = stmt.query_map([atk], |row| {
             Ok(Card::from_data(
@@ -41,6 +50,7 @@ impl Select for Conn {
                 row.get(2)?,
                 row.get(3)?,
                 row.get(4)?,
+                row.get(5)?,
             ))
         })?;
 
@@ -52,11 +62,15 @@ impl Select for Conn {
     }
 
     fn select_def(&self, def: u32, opt: Operation) -> Result<(), Error> {
-        let sql = format!("SELECT d.id,name,atk,def,desc FROM datas AS d INNER JOIN texts AS t ON d.id=t.id WHERE {};",  match opt {
-            Operation::EQ => "def=?",
-            Operation::GT => "def>?",
-            Operation::LT => "def<?", 
-        });
+        let sql = format!(
+            "{} WHERE {}",
+            BASE_SQL,
+            match opt {
+                Operation::EQ => "def=?",
+                Operation::GT => "def>?",
+                Operation::LT => "def<?",
+            }
+        );
         let mut stmt = self.conn.prepare(&sql)?;
         let results = stmt.query_map([def], |row| {
             Ok(Card::from_data(
@@ -65,6 +79,28 @@ impl Select for Conn {
                 row.get(2)?,
                 row.get(3)?,
                 row.get(4)?,
+                row.get(5)?,
+            ))
+        })?;
+
+        for rs in results {
+            println!("{:?}", rs?);
+        }
+
+        Ok(())
+    }
+
+    fn select_kind(&self, kind_code: u64) -> Result<(), Error> {
+        let sql = format!("{} WHERE {}", BASE_SQL, "type=?");
+        let mut stmt = self.conn.prepare(&sql)?;
+        let results = stmt.query_map([kind_code], |row| {
+            Ok(Card::from_data(
+                row.get(0)?,
+                row.get(1)?,
+                row.get(2)?,
+                row.get(3)?,
+                row.get(4)?,
+                row.get(5)?,
             ))
         })?;
 
@@ -76,7 +112,7 @@ impl Select for Conn {
     }
 
     fn select_code(&self, code: u64) -> Result<(), Error> {
-        let sql = "SELECT d.id,name,atk,def,desc FROM datas AS d INNER JOIN texts AS t ON d.id=t.id WHERE d.id=?;";
+        let sql = format!("{} WHERE {}", BASE_SQL, "d.id=?");
         let mut stmt = self.conn.prepare(&sql)?;
         let results = stmt.query_map([code], |row| {
             Ok(Card::from_data(
@@ -85,6 +121,7 @@ impl Select for Conn {
                 row.get(2)?,
                 row.get(3)?,
                 row.get(4)?,
+                row.get(5)?,
             ))
         })?;
 
@@ -97,7 +134,7 @@ impl Select for Conn {
 
     fn select_effect(&self, effect: String) -> Result<(), Error> {
         let effect = format!("%{}%", effect);
-        let sql = "SELECT d.id,name,atk,def,desc FROM datas AS d INNER JOIN texts AS t ON d.id=t.id WHERE desc LIKE ?;";
+        let sql = format!("{} WHERE {}", BASE_SQL, "desc LIKE ?");
         let mut stmt = self.conn.prepare(&sql)?;
         let results = stmt.query_map([effect], |row| {
             Ok(Card::from_data(
@@ -106,6 +143,7 @@ impl Select for Conn {
                 row.get(2)?,
                 row.get(3)?,
                 row.get(4)?,
+                row.get(5)?,
             ))
         })?;
 
@@ -118,7 +156,7 @@ impl Select for Conn {
 
     fn select_name(&self, name: String) -> Result<(), Error> {
         let name = format!("%{}%", name);
-        let sql = "SELECT d.id,name,atk,def,desc FROM datas AS d INNER JOIN texts AS t ON d.id=t.id WHERE name LIKE ?;";
+        let sql = format!("{} WHERE {}", BASE_SQL, "name LIKE ?");
         let mut stmt = self.conn.prepare(&sql)?;
         let results = stmt.query_map([name], |row| {
             Ok(Card::from_data(
@@ -127,6 +165,7 @@ impl Select for Conn {
                 row.get(2)?,
                 row.get(3)?,
                 row.get(4)?,
+                row.get(5)?,
             ))
         })?;
 
@@ -156,6 +195,14 @@ impl Select for Conn {
                 str = format!("name LIKE '%{}%'", card.name);
             } else {
                 str = format!("{} AND name LIKE '%{}%'", str, card.name);
+            }
+        }
+        // 如果type存在
+        if card.types > 0 {
+            if str.len() == 0 {
+                str = format!("type={}", card.types);
+            } else {
+                str = format!("{} AND type={}", str, card.types);
             }
         }
         // 如果atk存在
@@ -203,10 +250,7 @@ impl Select for Conn {
         }
 
         // 查询处理
-        let sql = format!(
-            "SELECT d.id,name,atk,def,desc FROM datas d INNER JOIN texts t ON d.id=t.id {};",
-            str
-        );
+        let sql = format!("{} {}", BASE_SQL, str);
         let mut stmt = self.conn.prepare(&sql)?;
         let results = stmt.query_map([], |row| {
             Ok(Card::from_data(
@@ -215,6 +259,7 @@ impl Select for Conn {
                 row.get(2)?,
                 row.get(3)?,
                 row.get(4)?,
+                row.get(5)?,
             ))
         })?;
 

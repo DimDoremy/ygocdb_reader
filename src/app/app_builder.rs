@@ -58,6 +58,13 @@ pub fn app_builder(version: &str) -> ArgMatches<'static> {
                 .help("通过守备力搜索小于的卡"),
         )
         .arg(
+            Arg::with_name("KIND")
+                .short("k")
+                .long("kind")
+                .takes_value(true)
+                .help("通过卡片种类搜索"),
+        )
+        .arg(
             Arg::with_name("CODE")
                 .short("c")
                 .long("code")
