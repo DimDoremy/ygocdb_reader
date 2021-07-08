@@ -5,8 +5,10 @@ use crate::{app::{app_builder::app_builder, app_operation::{search, search_hyper
 pub mod conn;
 pub mod app;
 
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
 fn main() -> Result<(), rusqlite::Error> {
-    let matches = app_builder("0.2.0");
+    let matches = app_builder(VERSION);
     let mut _conns: Conn = Conn::new();
 
     // -f
